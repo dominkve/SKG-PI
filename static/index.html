@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <title>SKG-PI</title>
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      max-width: 420px;
+      width: 100%;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+    }
+
+    .pi-value {
+      font-size: 2.4rem;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: #2c7be5;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1a68d1;
+    }
+
+    .success {
+      text-align: center;
+      font-size: 0.9rem;
+      color: green;
+      margin-top: 10px;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1>Buffonov pokus</h1>
+
+    <div class="card">
+      <div class="pi-value" id="pi">π ≈ ?</div>
+
+      <div class="stats">
+        <span>Bacanja: <strong id="total_throws">0</strong></span>
+        <span>Križanja: <strong id="total_crossings">0</strong></span>
+      </div>
+    </div>
+
+    <div class="card">
+
+      <form>
+
+        <label for="throws">Broj bacanja</label>
+        <input 
+          type="number"
+          id="throws"
+          name="throws"
+          required
+          max="100"
+          min="1" />
+
+        <label for="crossings">Broj križanja</label>
+        <input 
+          type="number"
+          id="crossings"
+          name="crossings"
+          required
+          max="100"
+          min="0" />
+
+        <button type="submit">Podnesi</button>
+        
+        <div class="success" id="success">
+          ✔ Rezultat poslan
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+  
+  <script>
+
+    const intervalMS = 2000
+
+    const poll = () => {
+      fetch("/stats/")
+        .then(res => res.json())
+        .then(data => {
+
+          document.getElementById("pi").textContent = 
+            data.pi ? "π ≈ " + data.pi.toFixed(5) : "π ≈ ?"
+
+          document.getElementById("total_throws").innerHTML = 
+            data.total_throws
+
+          document.getElementById("total_crossings").innerHTML = 
+            data.total_crossings
+        })
+        .catch(err => console.error("Error:", err))
+    };
+
+    poll();
+    setInterval(poll, intervalMS);
+
+    document.querySelector("form").addEventListener("submit",
+      async function(event) {
+
+        event.preventDefault();
+
+        const throws = Number(document.getElementById("throws").value)
+        const crossings = Number(document.getElementById("crossings").value)
+
+        await fetch("/submit/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ throws, crossings })
+        })
+
+        poll();
+
+        document.querySelector("form").reset();
+
+        const success = document.getElementById("success")
+        success.style.display = "block"
+
+        setTimeout(() => {
+          success.style.display = "none"
+        }, 2000)
+
+    });
+
+  </script>
+
+</body>
+</html>
