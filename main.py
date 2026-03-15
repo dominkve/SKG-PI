@@ -64,8 +64,16 @@ async def root():
 
 @app.post("/submit/")
 async def submit(Entry: Entry, request: Request):
+    
+    print(request.headers)
+    
+    ip = request.headers.get("x-forwarded-for")
 
-    ip = request.client.host
+    if ip:
+        ip = ip.split(",")[0]
+    else:
+        ip = request.client.host
+
     now = time.time()
     
     timestamps = rate_limit[ip]
