@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="hr">
 <head>
-  <title>SKG-PI</title>
+  <title>Buffonov Eksperiment</title>
+  
   <meta charset="UTF-8">
-
+  
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <link rel="icon" type="img" href="./static/public/pi-symbol-icon.svg" />
+  
   <style>
 
     body {
@@ -40,6 +43,13 @@
       font-weight: bold;
       text-align: center;
       margin-bottom: 10px;
+    }
+
+    .pi-error {
+      text-align: center;
+      color: #777;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
     }
 
     .stats {
@@ -88,6 +98,54 @@
       margin-top: 10px;
       display: none;
     }
+    
+    
+    /* Projector */
+
+    @media (min-width: 1000px) {
+
+      body {
+        align-items: center;
+        height: 100vh;
+        padding: 40px;
+      }
+      
+      h1 {
+        font-size: 4rem;
+      }
+       
+      .container {
+        max-width: 900px;
+      }
+
+      .card {
+        padding: 40px;
+      }
+
+      .pi-value {
+        font-size: 6rem;
+        margin-bottom: 20px;
+      }
+
+      .pi-error {
+        font-size: 1.5rem;
+        margin-bottom: 25px;
+      }
+
+      .stats {
+        font-size: 1.5rem;
+      }
+
+      form {
+        display: none;
+      }
+      
+      #form_card {
+        display: none;
+      }
+
+    }
+
   </style>
 </head>
 
@@ -98,6 +156,7 @@
 
     <div class="card">
       <div class="pi-value" id="pi">π ≈ ?</div>
+      <div class="pi-error" id="pi-diff">Gre[ka: ?</div>
 
       <div class="stats">
         <span>Bacanja: <strong id="total_throws">0</strong></span>
@@ -105,7 +164,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="form_card">
 
       <form>
 
@@ -115,7 +174,7 @@
           id="throws"
           name="throws"
           required
-          max="100"
+          max="20"
           min="1" />
 
         <label for="crossings">Broj križanja</label>
@@ -124,7 +183,7 @@
           id="crossings"
           name="crossings"
           required
-          max="100"
+          max="20"
           min="0" />
 
         <button type="submit">Podnesi</button>
@@ -147,9 +206,11 @@
       fetch("/stats/")
         .then(res => res.json())
         .then(data => {
-
           document.getElementById("pi").textContent = 
             data.pi ? "π ≈ " + data.pi.toFixed(5) : "π ≈ ?"
+
+          document.getElementById("pi-diff").textContent =  
+            data.pi ? "Greška: " + Math.abs(Math.PI - data.pi).toFixed(5) : "Greška: ?" 
 
           document.getElementById("total_throws").innerHTML = 
             data.total_throws
@@ -168,15 +229,31 @@
 
         event.preventDefault();
 
+        const button = document.querySelector("button")
+        
+        button.disabled = true
+        
         const throws = Number(document.getElementById("throws").value)
         const crossings = Number(document.getElementById("crossings").value)
 
-        await fetch("/submit/", {
+        const response = await fetch("/submit/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ throws, crossings })
         })
-
+        
+        if (response.status === 429) {
+          alert("Prebrzo šaljete rezultate. Pričekajte malo.")
+          document.querySelector("form").reset();
+          return
+        }
+        
+        if (!response.ok) {
+          alert("Dogodila se greška pri slanju rezultata.")  
+          document.querySelector("form").reset();
+          return
+        }
+        
         poll();
 
         document.querySelector("form").reset();
@@ -186,6 +263,7 @@
 
         setTimeout(() => {
           success.style.display = "none"
+          button.disabled = false
         }, 2000)
 
     });

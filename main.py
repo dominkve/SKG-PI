@@ -1,9 +1,16 @@
-from fastapi import FastAPI, HTTPException
+import time
+from collections import defaultdict
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sqlite3
+
+rate_limit = defaultdict(list)
+
+MAX_REQUESTS = 2
+WINDOW = 60
 
 conn = sqlite3.connect("pi.db")
 cursor = conn.cursor()
@@ -54,13 +61,32 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return FileResponse("static/index.html")
-@app.post("/submit/")
-async def submit(Entry: Entry):
 
+@app.post("/submit/")
+async def submit(Entry: Entry, request: Request):
+
+    ip = request.client.host
+    now = time.time()
+    
+    timestamps = rate_limit[ip]
+    
+    rate_limit[ip] = [t for t in timestamps if now - t < WINDOW]
+    
+    if len(rate_limit[ip]) >= MAX_REQUESTS:
+      raise HTTPException(
+        status_code = 429,
+        detail = "reviše zahtjeva. Pričekajte nekoliko sekundi."
+      )
+      
+    rate_limit[ip].append(now)
+    
     if Entry.throws <= 0:
         raise HTTPException(status_code=400,
-                            detail="Broj bacanja mora biti pozitivan.")
-    
+                            detail="Broj bacanja mora biti veci od nula.")
+    if Entry.throws >20: 
+        raise HTTPException(status_code=400,  
+                            detail="Broj bacanja ne moze biti veci od 20.")
+
     if Entry.crossings < 0 or Entry.crossings > Entry.throws:
         raise HTTPException(status_code=400,
                             detail="Nevaljan broj križanja.")
@@ -106,4 +132,4 @@ async def stats():
         "total_crossings": data[0][1],
         "pi": pi_estimate
     }
-    
+	    
